@@ -10,7 +10,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: ${GENERIC_TIMEZONE}
     volumes:
-      - ../../persistencia/postgres/data:/var/lib/postgresql/data
+      - ./persistencia/postgres/data:/var/lib/postgresql/data
     networks:
       - net
     healthcheck:
@@ -54,7 +54,7 @@ services:
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
 
     volumes:
-      - ../../persistencia/n8n:/home/node/.n8n
+      - ./persistencia/n8n:/home/node/.n8n
     depends_on:
       postgres:
         condition: service_healthy
