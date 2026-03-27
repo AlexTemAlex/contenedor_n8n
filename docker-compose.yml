@@ -1,0 +1,70 @@
+services:                   # Sección donde se definen todos los contenedores
+
+  postgres:                 # Servicio de base de datos PostgreSQL
+    container_name: postgres
+    image: postgres:15
+    restart: always         # Reiniciar automáticamente si ocurre un error o fallo
+    environment:            # Variables de entorno necesarias para configurar PostgreSQL
+      POSTGRES_USER: ${POSTGRES_USER}           # Usuario de PostgreSQL tomado del archivo .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   # Contraseña del usuario
+      POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD}  # Método de autenticación
+    ports:
+      - "5432:5432"                             # Expone el puerto 5432 del contenedor al host
+    volumes:
+      - ../../persistencia/postgres/data:/var/lib/postgresql/data # Volumen persistente para almacenar datos
+      - ../../persistencia/postgres/postgres-init:/docker-entrypoint-initdb.d # Montar carpeta con scripts SQL
+    networks:
+      - net                                     # Conecta este servicio a la red "net"
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - net
+
+  n8n:                      # Servicio de n8n
+    container_name: n8n
+    image: n8nio/n8n:latest
+    restart: always  
+    ports:
+      - "5678:5678"
+    environment: 
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}         # Zona horaria
+      N8N_HOST: ${N8N_HOST}                         # Hostname donde se servirá n8n
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}     # Clave de cifrado para credenciales
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE}
+      N8N_RUNNERS_ENABLED: true
+      N8N_GIT_NODE_DISABLE_BARE_REPOS: true
+      N8N_PROXY_HOPS: 1
+      N8N_TRUST_PROXY: 1
+      N8N_TRUST_HOST: 1
+      N8N_PUSH_BACKEND: "websocket"
+      # CONFIGURACIÓN DE POSTGRES PARA N8N
+      DB_TYPE: ${DB_TYPE}                           # Tipo de base de datos que usa n8n
+      DB_POSTGRESDB_HOST: ${DB_POSTGRESDB_HOST}     # Host del PostgreSQL
+      DB_POSTGRESDB_PORT: ${DB_POSTGRESDB_PORT}     # Puerto del PostgreSQL
+      DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER}     # Usuario creado por nosotros para ingresar a PostgreSQL
+      DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD}  # Contraseña
+      DB_POSTGRESDB_DATABASE: ${DB_POSTGRESDB_DATABASE}  # Nombre de la BD creada en Postgres
+
+    volumes:
+      - ../../persistencia/n8n:/home/node/.n8n  # Persiste la configuración y datos de n8n
+    depends_on:
+      - postgres                # Requiere que primero inicie el contenedor de PostgreSQL
+    networks:
+      - net                     # Conectado a la red "net"
+
+networks:
+  net:    # Se define una red Docker para que los servicios se comuniquen entre sí
+
+volumes:
+  redis_data:
+
