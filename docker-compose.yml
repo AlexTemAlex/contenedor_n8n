@@ -10,7 +10,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: ${GENERIC_TIMEZONE}
     volumes:
-      - ../../persistencia/postgres/data:/var/lib/postgresql/data
+      - ./persistencia/postgres/data:/var/lib/postgresql/data
     networks:
       - net
     healthcheck:
@@ -19,6 +19,16 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    container_name: redis
+    image: redis:7
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - ./persistencia/redis:/data
+    networks:
+      - net
+
   n8n:
     container_name: n8n
     image: n8nio/n8n:2.13.3
@@ -26,18 +36,15 @@ services:
     ports:
       - "5678:5678"
     environment:
-      # Básico (IMPORTANTE para IP)
+      # Básico
       GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
       N8N_HOST: ${N8N_HOST}
-      N8N_PROTOCOL: http
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
       WEBHOOK_URL: ${WEBHOOK_URL}
       N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
 
       # Seguridad
-      N8N_BASIC_AUTH_ACTIVE: true
-      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
-      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
       N8N_SECURE_COOKIE: false
 
       # Producción
@@ -53,11 +60,18 @@ services:
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
 
+      # Redis (colas)
+      QUEUE_MODE: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
     volumes:
-      - ../../persistencia/n8n:/home/node/.n8n
+      - ./persistencia/n8n:/home/node/.n8n
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - net
     healthcheck:
@@ -65,6 +79,36 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  n8n-worker:
+    container_name: n8n_worker
+    image: n8nio/n8n:2.13.3
+    restart: always
+    command: worker
+    environment:
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+
+      # DB
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+
+      # Redis
+      QUEUE_MODE: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    volumes:
+      - ./persistencia/n8n:/home/node/.n8n
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - net
 
 networks:
   net:
