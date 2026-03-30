@@ -99,8 +99,9 @@ services:
 
       # Redis
       QUEUE_MODE: redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_DB: 0
 
     volumes:
       - ./persistencia/n8n:/home/node/.n8n
